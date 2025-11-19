@@ -1,0 +1,33 @@
+import { CompanyPermissionFlags } from './companyPermission.types';
+
+export interface CompanyTeamFormProps {
+    mode: 'add' | 'edit';
+    entityId?: string;
+    parentStructureId?: string | null;
+    permissions: CompanyPermissionFlags | null;
+    onSaved: (result: {
+        label: string;
+        structureId?: string;
+        entityId?: string;
+        type: 'team';
+    }) => void;
+    onCancel: () => void;
+    onError?: (error: string) => void;
+    onSuccess?: (message: string) => void;
+}
+export interface CompanyUserFormProps {
+    mode: 'add' | 'edit';
+    entityId?: string;
+    parentStructureId?: string | null;
+    permissions: CompanyPermissionFlags | null;
+    onSaved: (result: {
+        label: string;
+        structureId?: string;
+        entityId?: string;
+        type: 'user';
+    }) => void;
+    onCancel: () => void;
+    onError?: (error: string) => void;
+    onSuccess?: (message: string) => void;
+}
+//# sourceMappingURL=companyForm.types.d.ts.map
