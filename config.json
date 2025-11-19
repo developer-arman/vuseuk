@@ -1,0 +1,34 @@
+{
+  "public": {
+    "default": {
+      "commerce-core-endpoint": "https://na1-qa.api.commerce.adobe.com/LnjXjuam6uWmo5d2JLEgbA/graphql",
+      "commerce-endpoint": "https://na1-qa.api.commerce.adobe.com/LnjXjuam6uWmo5d2JLEgbA/graphql",
+      "headers": {
+        "cs": {
+          "content-type":"application/json",
+          "AC-View-Id":"14d7917c-441a-490c-a424-098e130c2d50",
+          "AC-Environment-Id":"LnjXjuam6uWmo5d2JLEgbA",
+          "AC-Price-Book-Id":"NLI",
+          "AC-Scope-Locale":"en-US",
+          "X-Api-Key": "storefront-catalog-apollo"
+        }
+      },
+      "analytics": {
+        "base-currency-code": "USD",
+        "environment": "Testing",
+        "store-id": 1,
+        "store-name": "e2e prex dropin aco2 en US",
+        "store-url": "https://e2e-prex-dropin-aco2en-US--aem-boilerplate-commerce--hlxsites.aem.live/",
+        "store-view-id": 1,
+        "store-view-name": "en-US",
+        "website-id": 1,
+        "website-name": "Main Website",
+        "Magento-Environment-Id": "LnjXjuam6uWmo5d2JLEgbA",
+        "Magento-Website-Code": "WEBSITE_CODE",
+        "Magento-Store-Code": "STORE_CODE",
+        "Magento-Store-View-Code": "en-US",
+        "Magento-Customer-Group": "b6589fc6ab0dc82cf12099d1c2d40ab994e8410c"
+      }
+    }
+  }
+}
