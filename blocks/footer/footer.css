@@ -11,6 +11,13 @@ footer .footer > div {
     padding: 40px 24px 24px;
 }
 
+footer .footer > div img {
+    mix-blend-mode: color-dodge;
+    width: 128px;
+    object-fit: contain;
+    margin-bottom: 20px;
+}
+
 footer .footer p {
     margin: 0;
 }
