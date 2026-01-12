@@ -110,6 +110,11 @@ async function loadEager(doc) {
       console.error('Error initializing commerce configuration:', e);
       loadErrorPage(418);
     }
+    
+    if (window.location.pathname === '/' || window.location.pathname === '/index') {
+      document.body.classList.add('home');
+    }
+    
     document.body.classList.add('appear');
     await loadSection(main.querySelector('.section'), waitForFirstImage);
   }

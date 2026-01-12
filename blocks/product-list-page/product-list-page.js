@@ -6,6 +6,9 @@ import Pagination from '@dropins/storefront-product-discovery/containers/Paginat
 import { render as provider } from '@dropins/storefront-product-discovery/render.js';
 import { Button, Icon, provider as UI } from '@dropins/tools/components.js';
 import { search } from '@dropins/storefront-product-discovery/api.js';
+// Algolia Search
+import { initializeAlgolia } from '../../scripts/initializers/algolia.js';
+import { searchProducts as algoliaSearchProducts } from '../../dropins/algoliaSearch/api.js';
 // Wishlist Dropin
 import { WishlistToggle } from '@dropins/storefront-wishlist/containers/WishlistToggle.js';
 import { render as wishlistRender } from '@dropins/storefront-wishlist/render.js';
@@ -21,6 +24,89 @@ import { fetchPlaceholders, getProductLink } from '../../scripts/commerce.js';
 // Initializers
 import '../../scripts/initializers/search.js';
 import '../../scripts/initializers/wishlist.js';
+
+/**
+ * Algolia search adapter - wraps Algolia API to match Product Discovery search interface
+ * This allows us to use the same SearchResults, Pagination components with Algolia data
+ */
+async function searchWithAlgolia({
+  phrase = '',
+  currentPage = 1,
+  pageSize = 8,
+  sort = [],
+  filter = [],
+}) {
+  try {
+    const algoliaResponse = await algoliaSearchProducts(phrase, {
+      hitsPerPage: pageSize,
+      page: currentPage - 1, // Algolia uses 0-based pagination
+    });
+
+    // Transform Algolia results to match Product Discovery format
+    const transformedItems = (algoliaResponse.results || []).map((item) => ({
+      sku: item.sku || '',
+      name: item.name || '',
+      urlKey: item.url_key || item.urlKey || '',
+      typename: item.typename || 'SimpleProductView',
+      images: item.image || item.thumbnail_url
+        ? [{
+          url: item.image || item.thumbnail_url,
+          label: item.name || '',
+        }]
+        : [],
+      price: {
+        final: {
+          amount: {
+            value: item.price || 0,
+            currency: 'USD',
+          },
+        },
+        regular: {
+          amount: {
+            value: item.regular_price || item.price || 0,
+            currency: 'USD',
+          },
+        },
+      },
+      priceRange: {
+        maximum: {
+          final: {
+            amount: {
+              value: item.price || 0,
+              currency: 'USD',
+            },
+          },
+        },
+        minimum: {
+          final: {
+            amount: {
+              value: item.price || 0,
+              currency: 'USD',
+            },
+          },
+        },
+      },
+    }));
+
+    // Emit the same event format as Product Discovery search
+    events.emit('search/result', {
+      request: {
+        phrase,
+        currentPage,
+        pageSize,
+        sort,
+        filter,
+      },
+      result: {
+        totalCount: algoliaResponse.totalHits || algoliaResponse.nbHits || 0,
+        items: transformedItems,
+      },
+    });
+  } catch (error) {
+    console.error('Error searching with Algolia:', error);
+    throw error;
+  }
+}
 
 export default async function decorate(block) {
   const labels = await fetchPlaceholders();
@@ -63,6 +149,38 @@ export default async function decorate(block) {
     filter,
   } = Object.fromEntries(urlParams.entries());
 
+  // Check if this is an Algolia search page
+  const isAlgoliaSearchPage = window.location.pathname.includes('/algolia-search');
+
+  events.on('search/result', (payload) => {
+    const totalCount = payload.result?.totalCount || 0;
+
+    block.classList.toggle('product-list-page--empty', totalCount === 0);
+
+    // Results Info
+    $resultInfo.innerHTML = payload.request?.phrase
+      ? `${totalCount} results found for <strong>"${payload.request.phrase}"</strong>.`
+      : `${totalCount} results found.`;
+
+    // Update the view facets button with the number of filters (skip for Algolia search)
+    if (!isAlgoliaSearchPage && payload.request.filter.length > 0) {
+      const button = $viewFacets.querySelector('button');
+      if (button) {
+        button.setAttribute('data-count', payload.request.filter.length);
+      }
+    } else if (!isAlgoliaSearchPage) {
+      const button = $viewFacets.querySelector('button');
+      if (button) {
+        button.removeAttribute('data-count');
+      }
+    }
+  }, { eager: true });
+
+  // Initialize Algolia only if needed
+  if (isAlgoliaSearchPage) {
+    await initializeAlgolia();
+  }
+
   // Request search based on the page type on block load
   if (config.urlpath) {
     // If it's a category page...
@@ -79,8 +197,17 @@ export default async function decorate(block) {
     }).catch(() => {
       console.error('Error searching for products');
     });
+  } else if (isAlgoliaSearchPage) {
+    // If it's an Algolia search page... use Algolia search adapter
+    await searchWithAlgolia({
+      phrase: q || '',
+      currentPage: page ? Number(page) : 1,
+      pageSize: 8,
+      sort: getSortFromParams(sort),
+      filter: getFilterFromParams(filter),
+    });
   } else {
-    // If it's a search page...
+    // Regular search page (not Algolia)
     await search({
       phrase: q || '',
       currentPage: page ? Number(page) : 1,
@@ -117,8 +244,8 @@ export default async function decorate(block) {
   };
 
   await Promise.all([
-    // Sort By
-    provider.render(SortBy, {})($productSort),
+    // Sort By (hide for Algolia search)
+    !isAlgoliaSearchPage ? provider.render(SortBy, {})($productSort) : Promise.resolve(),
 
     // Pagination
     provider.render(Pagination, {
@@ -128,34 +255,33 @@ export default async function decorate(block) {
       },
     })($pagination),
 
-    // View Facets Button
-    UI.render(Button, {
+    // View Facets Button (hide for Algolia search)
+    !isAlgoliaSearchPage ? UI.render(Button, {
       children: labels.Global?.Filters,
       icon: Icon({ source: 'Burger' }),
       variant: 'secondary',
       onClick: () => {
         $facets.classList.toggle('search__facets--visible');
       },
-    })($viewFacets),
+    })($viewFacets) : Promise.resolve(),
 
-    // Facets
-    provider.render(Facets, {})($facets),
+    // Facets (hide for Algolia search)
+    !isAlgoliaSearchPage ? provider.render(Facets, {})($facets) : Promise.resolve(),
     // Product List
     provider.render(SearchResults, {
       routeProduct: (product) => getProductLink(product.urlKey, product.sku),
       slots: {
         ProductImage: (ctx) => {
-          const { product, defaultImageProps } = ctx;
           const anchorWrapper = document.createElement('a');
-          anchorWrapper.href = getProductLink(product.urlKey, product.sku);
+          anchorWrapper.href = getProductLink(ctx.product.urlKey, ctx.product.sku);
 
           tryRenderAemAssetsImage(ctx, {
-            alias: product.sku,
-            imageProps: defaultImageProps,
+            alias: ctx.product.sku,
+            imageProps: ctx.defaultImageProps,
             wrapper: anchorWrapper,
             params: {
-              width: defaultImageProps.width,
-              height: defaultImageProps.height,
+              width: ctx.defaultImageProps.width,
+              height: ctx.defaultImageProps.height,
             },
           });
         },
@@ -180,24 +306,12 @@ export default async function decorate(block) {
     })($productList),
   ]);
 
-  // Listen for search results (event is fired before the block is rendered; eager: true)
-  events.on('search/result', (payload) => {
-    const totalCount = payload.result?.totalCount || 0;
-
-    block.classList.toggle('product-list-page--empty', totalCount === 0);
-
-    // Results Info
-    $resultInfo.innerHTML = payload.request?.phrase
-      ? `${totalCount} results found for <strong>"${payload.request.phrase}"</strong>.`
-      : `${totalCount} results found.`;
-
-    // Update the view facets button with the number of filters
-    if (payload.request.filter.length > 0) {
-      $viewFacets.querySelector('button').setAttribute('data-count', payload.request.filter.length);
-    } else {
-      $viewFacets.querySelector('button').removeAttribute('data-count');
-    }
-  }, { eager: true });
+  // Hide facets and sort for Algolia search
+  if (isAlgoliaSearchPage) {
+    $facets.style.display = 'none';
+    $viewFacets.style.display = 'none';
+    $productSort.style.display = 'none';
+  }
 
   // Listen for search results (event is fired after the block is rendered; eager: false)
   events.on('search/result', (payload) => {

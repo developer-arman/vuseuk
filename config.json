@@ -2,7 +2,7 @@
 {
   "public": {
     "default": {
-      "commerce-core-endpoint": "https://www.aemshop.net/graphql",
+      "commerce-core-endpoint": "https://na1-sandbox.api.commerce.adobe.com/4wQSG2tXazwRKoDE5vahEA/graphql",
       "commerce-endpoint": "https://catalog-service.adobe.io/graphql",
       "headers": {
         "all": {
@@ -36,6 +36,11 @@
         "picker": {
           "rootCategory": "2"
         }
+      },
+      "algolia": {
+        "applicationId": "BKZ22537V0",
+        "apiKey": "f4f2c66939a38e4069b125d10dce6a46",
+        "indexName": "test_adobe_algolia"
       }
     }
   }

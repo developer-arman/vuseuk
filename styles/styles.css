@@ -128,7 +128,7 @@
   /* Additional tokens */
   --type-fixed-font-family: adobe-clean, "Roboto Mono", menlo, consolas, "Liberation Mono", monospace, system-ui, sans-serif;
   --background-color: var(--color-neutral-50);
-  --nav-height: 6.4rem;
+  --nav-height: 105px;
 }
 
 /* fallback font */
@@ -169,11 +169,15 @@ header {
 
 main {
   grid-row: 2;
-  background-color: #1d1d1b;
 }
 
 footer {
   grid-row: 3;
+}
+
+/* Home page specific background */
+body.home main {
+  background-color: #1d1d1b;
 }
 
 header .header,

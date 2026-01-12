@@ -15,17 +15,41 @@ if (fs.existsSync(dropinsDir)) {
 fs.mkdirSync(dropinsDir, { recursive: true });
 
 // Copy specified files from node_modules/@dropins to scripts/__dropins__
+// ...existing code...
+
+// Copy specified files from node_modules/@dropins to scripts/__dropins__
 fs.readdirSync('node_modules/@dropins', { withFileTypes: true }).forEach((file) => {
+  const sourceDir = path.join('node_modules', '@dropins', file.name);
+  const destDir = path.join(dropinsDir, file.name);
   // Skip if package is not in package.json dependencies / skip devDependencies
   if (!dependencies[`@dropins/${file.name}`]) {
     return;
   }
 
-  // Skip if is not folder
-  if (!file.isDirectory()) {
+  // Check if it's a directory or symbolic link pointing to a directory
+  let isValidTarget = false;
+  if (file.isDirectory()) {
+    isValidTarget = true;
+  } else if (file.isSymbolicLink()) {
+    try {
+      const realPath = fs.realpathSync(sourceDir);
+      const stats = fs.statSync(realPath);
+      if (stats.isDirectory()) {
+        isValidTarget = true;
+        // eslint-disable-next-line no-console
+        console.log(`🔎 Found symbolic link ${file.name} pointing to directory ${realPath}`);
+      }
+    } catch (error) {
+      console.warn(`⚠️ Warning: Could not resolve symbolic link ${file.name}:`, error.message);
+    }
+  }
+
+  // Skip if not a directory or valid symbolic link to directory
+  if (!isValidTarget) {
     return;
   }
-  fs.cpSync(path.join('node_modules', '@dropins', file.name), path.join(dropinsDir, file.name), {
+
+  fs.cpSync(sourceDir, destDir, {
     recursive: true,
     filter: (src) => (!src.endsWith('package.json')),
   });
@@ -35,8 +59,6 @@ fs.readdirSync('node_modules/@dropins', { withFileTypes: true }).forEach((file) 
 [
   { from: '@adobe/magento-storefront-event-collector/dist/index.js', to: 'commerce-events-collector.js' },
   { from: '@adobe/magento-storefront-events-sdk/dist/index.js', to: 'commerce-events-sdk.js' },
-  { from: '@adobe/adobe-client-data-layer/dist/adobe-client-data-layer.min.js', to: 'acdl/adobe-client-data-layer.min.js' },
-  { from: '@adobe/adobe-client-data-layer/dist/adobe-client-data-layer.min.js.map', to: 'acdl/adobe-client-data-layer.min.js.map' },
 ].forEach((file) => {
   fs.copyFileSync(path.resolve(__dirname, 'node_modules', file.from), path.resolve(__dirname, 'scripts', file.to));
 });
@@ -54,7 +76,7 @@ function checkPackageLockForArtifactory() {
         Object.keys(packageLock.packages).forEach((packageName) => {
           const packageInfo = packageLock.packages[packageName];
           if (packageInfo.resolved && packageInfo.resolved.includes('artifactory')) {
-            console.warn(`Warning: artifactory found in resolved property for package ${packageName}`);
+            console.warn(`⚠️ Warning: artifactory found in resolved property for package ${packageName}`);
             found = true;
           }
         });

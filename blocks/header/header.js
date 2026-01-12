@@ -12,11 +12,8 @@ import { renderAuthDropdown } from './renderAuthDropdown.js';
 // media query match that indicates mobile/tablet width
 const isDesktop = window.matchMedia('(min-width: 900px)');
 
-const labels = await fetchPlaceholders();
-
-const overlay = document.createElement('div');
-overlay.classList.add('overlay');
-document.querySelector('header').insertAdjacentElement('afterbegin', overlay);
+let labels;
+let overlay;
 
 function closeOnEscape(e) {
   if (e.code === 'Escape') {
@@ -160,6 +157,14 @@ export default async function decorate(block) {
   // load nav as fragment
   const navMeta = getMetadata('nav');
   const navPath = navMeta ? new URL(navMeta, window.location).pathname : '/nav';
+  
+  // Initialize labels and overlay
+  labels = await fetchPlaceholders();
+  
+  overlay = document.createElement('div');
+  overlay.classList.add('overlay');
+  document.querySelector('header').insertAdjacentElement('afterbegin', overlay);
+  
   const fragment = await loadFragment(navPath);
 
   // decorate nav DOM
@@ -180,6 +185,11 @@ export default async function decorate(block) {
     brandLink.className = '';
     brandLink.closest('.button-container').className = '';
   }
+
+  navBrand.addEventListener('click', (e) => {
+    e.preventDefault();
+    window.location.href = rootLink('/');
+  });
 
   const navSections = nav.querySelector('.nav-sections');
   if (navSections) {
@@ -332,6 +342,20 @@ export default async function decorate(block) {
     }
   }, { eager: true });
 
+  /** Algolia Search */
+  const algoliaSearchFragment = document.createRange().createContextualFragment(`
+  <div class="algolia-search-wrapper nav-tools-wrapper">
+    <div class="algolia-search-input-container">
+      <input type="text" class="nav-algolia-search-input" placeholder="Search..." aria-label="Algolia Search" />
+    </div>
+    <div class="nav-algolia-search-panel nav-tools-panel">
+      <div class="algolia-search-result"></div>
+    </div>
+  </div>
+  `);
+
+  navTools.prepend(algoliaSearchFragment);
+
   /** Search */
   const searchFragment = document.createRange().createContextualFragment(`
   <div class="search-wrapper nav-tools-wrapper">
@@ -462,6 +486,131 @@ export default async function decorate(block) {
     }
   });
 
+  /** Algolia Search Logic */
+  const algoliaSearchPanel = navTools.querySelector('.nav-algolia-search-panel');
+  const algoliaSearchInput = navTools.querySelector('.nav-algolia-search-input');
+  const algoliaSearchResult = algoliaSearchPanel.querySelector('.algolia-search-result');
+
+  let algoliaInitialized = false;
+  let searchTimeout;
+  let searchProducts;
+
+  // Initialize Algolia on first interaction
+  async function initializeAlgoliaSearch() {
+    if (algoliaInitialized) return;
+
+    try {
+      algoliaSearchInput.disabled = true;
+      
+      const [
+        { initializeAlgolia },
+        { searchProducts: searchProductsFn },
+      ] = await Promise.all([
+        import('../../scripts/initializers/algolia.js'),
+        import('../../dropins/algoliaSearch/api.js'),
+      ]);
+
+      await initializeAlgolia();
+      searchProducts = searchProductsFn;
+      algoliaInitialized = true;
+      
+      algoliaSearchInput.disabled = false;
+      algoliaSearchInput.focus();
+    } catch (error) {
+      console.error('Failed to initialize Algolia:', error);
+      algoliaSearchInput.disabled = false;
+    }
+  }
+
+  // Handle search input
+  async function handleAlgoliaSearch(query) {
+    clearTimeout(searchTimeout);
+
+    if (!query || query.length < 2) {
+      algoliaSearchResult.innerHTML = '';
+      algoliaSearchPanel.classList.remove('nav-tools-panel--show');
+      return;
+    }
+
+    // Show panel
+    algoliaSearchPanel.classList.add('nav-tools-panel--show');
+
+    searchTimeout = setTimeout(async () => {
+      try {
+        algoliaSearchResult.innerHTML = '<div class="algolia-loading">Searching...</div>';
+
+        const response = await searchProducts(query, {
+          hitsPerPage: 5,
+        });
+
+        if (response.results && response.results.length > 0) {
+          const resultsHTML = response.results.map(result => `
+            <div class="algolia-result-item" data-url="${result.url || ''}" data-sku="${result.sku || ''}">
+              <div class="algolia-result-image-wrapper ${!result.image ? 'no-image' : ''}">
+                ${result.thumbnail_url ? `<img src="${result.thumbnail_url}" alt="${result.name || 'Product'}" class="algolia-result-image" />` : '<div class="algolia-result-image-placeholder"></div>'}
+              </div>
+              <div class="algolia-result-content">
+                ${result.name ? `<h3 class="algolia-result-name">${result.name}</h3>` : ''}
+                ${result.sku ? `<p class="algolia-result-sku">SKU: ${result.sku}</p>` : ''}
+                ${result.price ? `<p class="algolia-result-price">$${result.price}</p>` : ''}
+              </div>
+            </div>
+          `).join('');
+
+          algoliaSearchResult.innerHTML = `
+            <div class="algolia-results">${resultsHTML}</div>
+            <div class="algolia-view-all">
+              <a href="${rootLink('/algolia-search')}?q=${encodeURIComponent(query)}" class="algolia-view-all-link">
+                View all results for "${query}"
+              </a>
+            </div>
+          `;
+
+          // Add click handlers for result items
+          algoliaSearchResult.querySelectorAll('.algolia-result-item').forEach(item => {
+            item.addEventListener('click', () => {
+              const url = item.dataset.url;
+              const sku = item.dataset.sku;
+              if (url) {
+                window.location.href = url;
+              } else if (sku) {
+                window.location.href = getProductLink(sku, sku);
+              }
+            });
+          });
+        } else {
+          algoliaSearchResult.innerHTML = `<div class="algolia-no-results">No results found for "${query}"</div>`;
+        }
+      } catch (error) {
+        console.error('Algolia search error:', error);
+        algoliaSearchResult.innerHTML = '<div class="algolia-error">Search failed. Please try again.</div>';
+      }
+    }, 300);
+  }
+
+  // Input event listeners
+  algoliaSearchInput.addEventListener('focus', async () => {
+    await initializeAlgoliaSearch();
+    if (algoliaSearchInput.value.length >= 2) {
+      algoliaSearchPanel.classList.add('nav-tools-panel--show');
+    }
+  });
+
+  algoliaSearchInput.addEventListener('input', async (e) => {
+    if (!algoliaInitialized) {
+      await initializeAlgoliaSearch();
+    }
+    handleAlgoliaSearch(e.target.value);
+  });
+
+  // Keyboard support
+  algoliaSearchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      algoliaSearchPanel.classList.remove('nav-tools-panel--show');
+      algoliaSearchInput.blur();
+    }
+  });
+
   // Close panels when clicking outside
   document.addEventListener('click', (e) => {
     // Check if undo is enabled for mini cart
@@ -485,6 +634,10 @@ export default async function decorate(block) {
 
     if (!searchPanel.contains(e.target) && !searchButton.contains(e.target)) {
       toggleSearch(false);
+    }
+
+    if (!algoliaSearchPanel.contains(e.target) && !algoliaSearchInput.contains(e.target)) {
+      algoliaSearchPanel.classList.remove('nav-tools-panel--show');
     }
   });
 
