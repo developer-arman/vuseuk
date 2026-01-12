@@ -23,6 +23,7 @@
     padding: 16px 0;
     font-size: 16px;
     line-height: 1.4;
+    font-weight: 600;
     cursor: pointer;
     list-style: none;
   }
@@ -48,6 +49,17 @@
 .footer-columns > div {
   display: flex;
   flex-direction: column;
+}
+
+.footer-columns > div:first-child p {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.footer-columns > div:last-child p a {
+  font-size: 14px;
+  font-weight: 400;
 }
 
 .footer-columns > div > div {
