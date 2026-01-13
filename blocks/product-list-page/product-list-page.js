@@ -38,7 +38,7 @@ async function searchWithAlgolia({
 }) {
   try {
     const algoliaResponse = await algoliaSearchProducts(phrase, {
-      hitsPerPage: pageSize,
+      hitsPerPage: 20,
       page: currentPage - 1, // Algolia uses 0-based pagination
     });
 
