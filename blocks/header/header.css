@@ -494,9 +494,7 @@ header .nav-algolia-search-panel {
   
 }
 
-.search-wrapper {
-  display: none;
-}
+
 
 header .nav-algolia-search-panel .algolia-search-result {
   width: 100%;
