@@ -5,7 +5,7 @@
 This is an **Adobe Experience Manager (AEM) Edge Delivery Services** project integrated with **Adobe Commerce** using the Drop-ins architecture. Content is authored in document-based tools and served via EDS while commerce functionality comes from pre-built Drop-in components.
 
 ### Core Layers
-- **Content Layer**: Documents from `https://content.da.live/developer-arman/vuseuk/` (see [fstab.yaml](fstab.yaml))
+- **Content Layer**: Documents from `https://content.da.live/developer-arman/accs/` (see [fstab.yaml](fstab.yaml))
 - **Commerce Backend**: Adobe Commerce GraphQL endpoints configured in [config.json](config.json)
   - `commerce-core-endpoint`: Core Commerce GraphQL (customer, cart, orders)
   - `commerce-endpoint`: Catalog Service GraphQL (products, search)
