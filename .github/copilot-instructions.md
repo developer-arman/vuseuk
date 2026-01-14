@@ -13,7 +13,7 @@ This is an **Adobe Experience Manager (AEM) Edge Delivery Services** project int
 
 ### Project Folders
 This workspace contains two projects:
-- **`vuseuk/`**: Main AEM EDS + Commerce storefront (this project)
+- **`accs/`**: Main AEM EDS + Commerce storefront (this project)
 - **`dropintemplate/`**: Template for creating custom drop-in components (uses Elsie CLI)
 
 ## Critical Workflow: Drop-in Dependencies
