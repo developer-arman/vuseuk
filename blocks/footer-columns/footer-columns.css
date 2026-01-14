@@ -66,6 +66,9 @@
   order: 1;
 }
 
+.footer-columns.block p {
+  color: #fff;
+}
 
 @media (min-width: 900px) {
   .footer-columns > div {
